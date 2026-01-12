@@ -100,32 +100,43 @@ const sendPushNotification = async (req, res) => {
     console.log(`Message: "${message}"`);
     console.log(`Account IDs: ${accountIds.slice(0, 5).join(', ')}${accountIds.length > 5 ? '...' : ''}`);
 
-    // Check how many users have FCM tokens
-    const deviceTokensCount = await DeviceToken.count({
-      where: {
-        accountId: accountIds,
-        isActive: true,
-      },
-    });
-
-    console.log(`📱 Found ${deviceTokensCount} active device token(s) for ${targetUsers.length} user(s)`);
-
-    // Get sample tokens to check if they're valid
-    const sampleTokens = await DeviceToken.findAll({
-      where: {
-        accountId: accountIds.slice(0, 3),
-        isActive: true,
-      },
-      attributes: ['fcmToken', 'device', 'accountId'],
-      limit: 3,
-    });
-
-    if (sampleTokens.length > 0) {
-      console.log(`\n📋 Sample tokens:`);
-      sampleTokens.forEach((token) => {
-        const isPlaceholder = token.fcmToken.includes('fcm_token_placeholder') || token.fcmToken.includes('web_fcm_token');
-        console.log(`   ${token.accountId}: ${token.device} - ${isPlaceholder ? '⚠️ PLACEHOLDER' : '✅ Valid'} (${token.fcmToken.substring(0, 30)}...)`);
+    // Check how many users have FCM tokens (with error handling)
+    let deviceTokensCount = 0;
+    try {
+      deviceTokensCount = await DeviceToken.count({
+        where: {
+          accountId: accountIds,
+          isActive: true,
+        },
       });
+      console.log(`📱 Found ${deviceTokensCount} active device token(s) for ${targetUsers.length} user(s)`);
+    } catch (countError) {
+      console.error(`⚠️ Error counting device tokens: ${countError.message}`);
+      console.log(`📱 Proceeding with notification send (count unavailable)`);
+      // Continue execution even if count fails
+    }
+
+    // Get sample tokens to check if they're valid (non-blocking, for debugging only)
+    try {
+      const sampleTokens = await DeviceToken.findAll({
+        where: {
+          accountId: accountIds.slice(0, 3),
+          isActive: true,
+        },
+        attributes: ['fcmToken', 'device', 'accountId'],
+        limit: 3,
+      });
+
+      if (sampleTokens.length > 0) {
+        console.log(`\n📋 Sample tokens:`);
+        sampleTokens.forEach((token) => {
+          const isPlaceholder = token.fcmToken.includes('fcm_token_placeholder') || token.fcmToken.includes('web_fcm_token');
+          console.log(`   ${token.accountId}: ${token.device} - ${isPlaceholder ? '⚠️ PLACEHOLDER' : '✅ Valid'} (${token.fcmToken.substring(0, 30)}...)`);
+        });
+      }
+    } catch (sampleError) {
+      // Non-critical error, just log and continue
+      console.log(`⚠️ Could not fetch sample tokens (non-critical): ${sampleError.message}`);
     }
 
     // Send push notifications

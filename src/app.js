@@ -52,7 +52,7 @@ app.use('/api/admin', adminUserRoutes);
 app.use('/api/admin', adminUserManagementRoutes); // Admin user management routes (must come before master routes)
 app.use('/api/admin', photoModerationRoutes);
 app.use('/api/admin', dashboardRoutes);
-app.use('/api/admin', adminNotificationRoutes);
+app.use('/api/admin/notifications', adminNotificationRoutes);
 app.use('/api/admin', masterRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/devices', deviceRoutes);

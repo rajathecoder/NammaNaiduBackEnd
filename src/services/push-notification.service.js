@@ -108,13 +108,36 @@ const sendPushNotificationToUser = async (accountId, notification, data = {}) =>
 const sendPushNotificationToUsers = async (accountIds, notification, data = {}) => {
   try {
     // Get all active FCM tokens for all users
-    const deviceTokens = await DeviceToken.findAll({
-      where: {
-        accountId: accountIds,
-        isActive: true,
-      },
-      attributes: ['fcmToken'],
-    });
+    // Add retry logic for database connection issues
+    let deviceTokens;
+    let retries = 3;
+    let lastError;
+    
+    while (retries > 0) {
+      try {
+        deviceTokens = await DeviceToken.findAll({
+          where: {
+            accountId: accountIds,
+            isActive: true,
+          },
+          attributes: ['fcmToken'],
+        });
+        break; // Success, exit retry loop
+      } catch (dbError) {
+        lastError = dbError;
+        retries--;
+        if (retries > 0 && (dbError.name === 'SequelizeDatabaseError' || dbError.code === 'ECONNRESET')) {
+          console.log(`⚠️ Database connection error, retrying... (${retries} attempts left)`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        } else {
+          throw dbError; // Non-retryable error or out of retries
+        }
+      }
+    }
+    
+    if (!deviceTokens) {
+      throw lastError || new Error('Failed to fetch device tokens after retries');
+    }
 
     if (deviceTokens.length === 0) {
       console.log(`No active FCM tokens found for users`);
