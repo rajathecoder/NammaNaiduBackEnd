@@ -34,5 +34,3 @@ build/
 coverage/
 .nyc_output/
 
-.gitignore
-src/config/firebase-service-account.json
