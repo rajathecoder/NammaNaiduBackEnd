@@ -6,57 +6,44 @@ let firebaseAdmin = null;
 
 /**
  * Initialize Firebase Admin SDK
- * This should be called once when the server starts
- * Supports both environment variable (for production) and file (for local development)
+ * Reads from .env file (FIREBASE_SERVICE_ACCOUNT) or firebase-service-account.json file
+ * Priority: Environment variable > JSON file
  */
 const initializeFirebaseAdmin = () => {
   try {
-    // Check if Firebase Admin is already initialized
     if (admin.apps.length > 0) {
-      console.log('Firebase Admin already initialized');
       firebaseAdmin = admin.app();
       return firebaseAdmin;
     }
 
     let serviceAccount;
 
-    // Try to load from environment variable first (for production/cloud deployments)
+    // Load from .env file (FIREBASE_SERVICE_ACCOUNT) or JSON file
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        console.log('✅ Loaded Firebase service account from environment variable');
+        let jsonString = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+        
+        // Handle newlines in JSON string (Railway may store with actual newlines)
+        if (jsonString.includes('\n') && !jsonString.includes('\\n')) {
+          jsonString = jsonString.replace(/\n/g, '\\n');
+        }
+        
+        serviceAccount = JSON.parse(jsonString);
       } catch (parseError) {
-        console.error('❌ Error parsing FIREBASE_SERVICE_ACCOUNT environment variable:', parseError.message);
-        throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT JSON in environment variable');
+        throw new Error(`Invalid FIREBASE_SERVICE_ACCOUNT JSON: ${parseError.message}`);
       }
     } else {
-      // Fall back to file (for local development)
-      // Try multiple possible paths to handle different execution contexts
+      // Try standard paths for local development
       const possiblePaths = [
-        path.join(__dirname, 'firebase-service-account.json'), // Standard path (when loaded from src/config/)
-        path.resolve(process.cwd(), 'src/config/firebase-service-account.json'), // From project root
-        path.resolve(__dirname, '../config/firebase-service-account.json'), // Alternative relative path
-        path.resolve(process.cwd(), 'NammaNaiduBackend/src/config/firebase-service-account.json'), // If running from parent directory
+        path.join(__dirname, 'firebase-service-account.json'),
+        path.resolve(process.cwd(), 'src/config/firebase-service-account.json'),
       ];
-      
-      // Debug: Log paths being checked
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 Checking for Firebase service account file...');
-        console.log('🔍 __dirname:', __dirname);
-        console.log('🔍 process.cwd():', process.cwd());
-      }
       
       let serviceAccountPath = null;
       for (const possiblePath of possiblePaths) {
-        const normalizedPath = path.normalize(possiblePath);
-        if (fs.existsSync(normalizedPath)) {
-          serviceAccountPath = normalizedPath;
-          if (process.env.NODE_ENV === 'development') {
-            console.log('✅ Found file at:', serviceAccountPath);
-          }
+        if (fs.existsSync(possiblePath)) {
+          serviceAccountPath = possiblePath;
           break;
-        } else if (process.env.NODE_ENV === 'development') {
-          console.log('   ❌ Not found:', normalizedPath);
         }
       }
       
@@ -64,28 +51,20 @@ const initializeFirebaseAdmin = () => {
         try {
           const serviceAccountFile = fs.readFileSync(serviceAccountPath, 'utf8');
           serviceAccount = JSON.parse(serviceAccountFile);
-          console.log('✅ Loaded Firebase service account from file');
         } catch (fileError) {
-          console.error('❌ Error reading Firebase service account file:', fileError.message);
-          console.error('❌ File path attempted:', serviceAccountPath);
           throw new Error(`Failed to read service account file: ${fileError.message}`);
         }
       } else {
-        console.error('❌ Firebase service account file not found in any of these locations:');
-        possiblePaths.forEach(p => {
-          const normalized = path.normalize(p);
-          console.error('   -', normalized, fs.existsSync(normalized) ? '✅ EXISTS' : '❌ NOT FOUND');
-        });
         throw new Error(
           'Firebase service account not found. ' +
-          'Either set FIREBASE_SERVICE_ACCOUNT environment variable or place firebase-service-account.json in src/config/'
+          'Set FIREBASE_SERVICE_ACCOUNT environment variable or place firebase-service-account.json in src/config/'
         );
       }
     }
 
-    // Validate service account structure
+    // Validate required fields
     if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-      throw new Error('Invalid service account: missing required fields (project_id, private_key, or client_email)');
+      throw new Error('Invalid service account: missing required fields');
     }
 
     // Initialize Firebase Admin
@@ -94,10 +73,10 @@ const initializeFirebaseAdmin = () => {
       projectId: serviceAccount.project_id,
     });
 
-    console.log('✅ Firebase Admin SDK initialized successfully');
+    console.log('Firebase Admin SDK initialized successfully');
     return firebaseAdmin;
   } catch (error) {
-    console.error('❌ Error initializing Firebase Admin SDK:', error.message);
+    console.error('Error initializing Firebase Admin SDK:', error.message);
     throw error;
   }
 };
@@ -165,10 +144,9 @@ const sendNotification = async (fcmToken, notification, data = {}) => {
     };
 
     const response = await messaging.send(message);
-    console.log('✅ Successfully sent notification:', response);
     return response;
   } catch (error) {
-    console.error('❌ Error sending notification:', error);
+    console.error('Error sending notification:', error.message);
     throw error;
   }
 };
@@ -216,20 +194,14 @@ const sendMulticastNotification = async (fcmTokens, notification, data = {}) => 
     };
 
     const response = await messaging.sendEachForMulticast(message);
-    console.log(`✅ Successfully sent ${response.successCount} notifications`);
-    console.log(`❌ Failed to send ${response.failureCount} notifications`);
     
     if (response.failureCount > 0) {
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success) {
-          console.error(`Failed to send to token ${fcmTokens[idx]}:`, resp.error);
-        }
-      });
+      console.warn(`Failed to send ${response.failureCount} of ${fcmTokens.length} notifications`);
     }
     
     return response;
   } catch (error) {
-    console.error('❌ Error sending multicast notification:', error);
+    console.error('Error sending multicast notification:', error.message);
     throw error;
   }
 };
@@ -277,10 +249,9 @@ const sendTopicNotification = async (topic, notification, data = {}) => {
     };
 
     const response = await messaging.send(message);
-    console.log('✅ Successfully sent topic notification:', response);
     return response;
   } catch (error) {
-    console.error('❌ Error sending topic notification:', error);
+    console.error('Error sending topic notification:', error.message);
     throw error;
   }
 };

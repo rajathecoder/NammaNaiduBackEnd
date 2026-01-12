@@ -113,22 +113,12 @@ NammaNaiduBackend/
 2. Place it at `src/config/firebase-service-account.json`
 3. The app will automatically load it from the file
 
-### For Production/Cloud Deployments (Render.com, Railway, etc.)
+### For Production/Cloud Deployments
 
-1. **Convert the JSON file to environment variable format:**
-   ```bash
-   node scripts/convert-firebase-to-env.js
-   ```
-   This will output the JSON as a single-line string.
-
-2. **Set the environment variable in your hosting platform:**
-   - **Render.com**: Go to your service → Environment → Add Environment Variable
-     - Key: `FIREBASE_SERVICE_ACCOUNT`
-     - Value: [paste the JSON string from step 1]
-   - **Railway**: Settings → Variables → Add Variable
-   - **Heroku**: `heroku config:set FIREBASE_SERVICE_ACCOUNT='...'`
-
-3. **Important**: The JSON string must be on a single line. Make sure to escape quotes properly if setting via command line.
+Set the `FIREBASE_SERVICE_ACCOUNT` environment variable with the JSON content as a single-line string:
+- **Railway**: Settings → Variables → Add Variable
+- **Render.com**: Environment → Add Environment Variable
+- **Heroku**: `heroku config:set FIREBASE_SERVICE_ACCOUNT='...'`
 
 **Note**: The `firebase-service-account.json` file is in `.gitignore` and should never be committed to version control.
 
