@@ -1,0 +1,428 @@
+## Authentication
+
+### 1. POST `/api/auth/send-otp`
+**URL:** `http://localhost:5000/api/auth/send-otp`
+**Purpose:** Validate mobile number, store registration payload, and send OTP (currently static `12345`).
+
+**Payload**
+```json
+{
+  "name": "Sundararajan",
+  "gender": "Male",
+  "mobile": "9865614558",
+  "countryCode": "+91",
+  "profileFor": "Myself"
+}
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "message": "OTP sent successfully",
+  "data": {
+    "otp": "12345",
+    "expiresAt": "2025-11-27T12:45:00.000Z"
+  }
+}
+```
+
+---
+
+### 2. POST `/api/auth/verify-otp`
+**URL:** `http://localhost:5000/api/auth/verify-otp`
+**Purpose:** Verify OTP, create user, and return JWT (expires in 2 days).
+
+**Payload**
+```json
+{
+  "mobile": "9865614558",
+  "countryCode": "+91",
+  "otp": "12345",
+  "name": "Sundararajan",
+  "gender": "Male",
+  "profileFor": "Myself"
+}
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "message": "OTP verified and user registered successfully",
+  "data": {
+    "user": {
+      "accountId": "l5efd89d0-d0db-4fcd-abb2-21c76df23de3",
+      "userCode": "NN#00001",
+      "name": "Sundararajan",
+      "phone": "+919865614558"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+---
+
+### 3. POST `/api/auth/register`
+**URL:** `http://localhost:5000/api/auth/register`
+**Purpose:** Legacy register endpoint that skips OTP verification.
+
+**Payload**
+```json
+{
+  "name": "Sundararajan",
+  "email": "sundar@example.com",
+  "password": "Secret@123",
+  "phone": "+919865614558"
+}
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "message": "User registered successfully",
+  "data": {
+    "user": {
+      "id": 1,
+      "name": "Sundararajan",
+      "email": "sundar@example.com"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+---
+
+### 4. POST `/api/auth/login`
+**URL:** `http://localhost:5000/api/auth/login`
+
+**Payload**
+```json
+{
+  "email": "sundar@example.com",
+  "password": "Secret@123"
+}
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "user": {
+      "id": 1,
+      "name": "Sundararajan",
+      "email": "sundar@example.com"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+---
+
+## Users (Bearer token required)
+
+### 5. GET `/api/users/profile`
+**URL:** `http://localhost:5000/api/users/profile`
+**Purpose:** Returns the authenticated user.
+
+**Response**
+```json
+{
+  "success": true,
+  "data": {
+    "accountId": "l5efd89d0-d0db-4fcd-abb2-21c76df23de3",
+    "userCode": "NN#00001",
+    "id": 1,
+    "name": "Sundararajan",
+    "email": "sundar@example.com",
+    "phone": "+919865614558",
+    "gender": "Male",
+    "profileFor": "Myself",
+    "countryCode": "+91"
+  }
+}
+```
+
+---
+
+### 6. PUT `/api/users/profile`
+**URL:** `http://localhost:5000/api/users/profile`
+**Purpose:** Update top-level profile fields (e.g., name, phone).
+
+**Payload**
+```json
+{
+  "name": "Sundararajan K",
+  "phone": "+919812345678"
+}
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "message": "Profile updated successfully",
+  "data": {
+    "id": 1,
+    "name": "Sundararajan K",
+    "phone": "+919812345678"
+  }
+}
+```
+
+---
+
+### 7. POST `/api/users/basic-details`
+**URL:** `http://localhost:5000/api/users/basic-details`
+**Purpose:** Persist the full wizard data after OTP verification.
+
+**Payload**
+```json
+{
+  "email": "sundar@example.com",
+  "password": "Secret@123",
+  "dobDay": 18,
+  "dobMonth": 7,
+  "dobYear": 1994,
+  "height": "5' 9\"",
+  "physicalStatus": "Normal",
+  "maritalStatus": "Never married",
+  "religion": "Hindu",
+  "caste": "Kamma Naidu",
+  "subcaste": "Telugu",
+  "willingToMarryFromAnyCaste": true,
+  "dosham": "No",
+  "country": "India",
+  "state": "Tamil Nadu",
+  "city": "Chennai",
+  "education": "MBA - Master of Business Administration",
+  "employmentType": "Private",
+  "occupation": "Marketing Professional",
+  "currency": "INR - India",
+  "annualIncome": "₹ 4 Lakhs to 5 Lakhs",
+  "familyStatus": "Upper middle class"
+}
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "message": "Basic details saved successfully",
+  "data": {
+    "user": {
+      "id": 1,
+      "accountId": "l5efd89d0-d0db-4fcd-abb2-21c76df23de3",
+      "userCode": "NN#00001",
+      "name": "Sundararajan",
+      "email": "sundar@example.com",
+      "phone": "+919865614558"
+    },
+    "basicDetail": {
+      "id": 1,
+      "userId": 1,
+      "dateOfBirth": "1994-07-18",
+      "height": "5' 9\"",
+      "religion": "Hindu",
+      "caste": "Kamma Naidu",
+      "city": "Chennai",
+      "occupation": "Marketing Professional",
+      "familyStatus": "Upper middle class",
+      "updatedAt": "2025-11-27T12:50:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+### 8. GET `/api/users`
+**URL:** `http://localhost:5000/api/users`
+**Purpose:** List all users (keep protected / admin-only).
+
+**Response**
+```json
+{
+  "success": true,
+  "count": 2,
+  "data": [
+    {
+      "id": 1,
+      "name": "Sundararajan",
+      "email": "sundar@example.com"
+    },
+    {
+      "id": 2,
+      "name": "Kalaivani",
+      "email": "kala@example.com"
+    }
+  ]
+}
+```
+
+================================================================================
+ADMIN MASTER MODULE APIs
+================================================================================
+
+### 9. GET `/api/admin/:type`
+**URL:** `http://localhost:5000/api/admin/:type`
+**Purpose:** Get all master records of a specific type
+**Path Parameters:**
+  - type: string (religion | caste | occupation | location | education | employment-type | income-currency | income-range)
+**Query Parameters (Optional):**
+  - status: string (active | inactive)
+
+**Example URLs:**
+- `http://localhost:5000/api/admin/religion`
+- `http://localhost:5000/api/admin/caste`
+- `http://localhost:5000/api/admin/occupation`
+- `http://localhost:5000/api/admin/location`
+- `http://localhost:5000/api/admin/education`
+- `http://localhost:5000/api/admin/employment-type`
+- `http://localhost:5000/api/admin/income-currency`
+- `http://localhost:5000/api/admin/income-range`
+
+**Response (Success - 200)**
+```json
+{
+  "success": true,
+  "message": "Masters retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "type": "religion",
+      "name": "Hindu",
+      "code": null,
+      "parentId": null,
+      "status": "active",
+      "order": 0,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### 10. GET `/api/admin/:type/:id`
+**URL:** `http://localhost:5000/api/admin/:type/:id`
+**Purpose:** Get a single master record by ID
+
+**Example:** `http://localhost:5000/api/admin/religion/1`
+
+**Response (Success - 200)**
+```json
+{
+  "success": true,
+  "message": "Master retrieved successfully",
+  "data": {
+    "id": 1,
+    "type": "religion",
+    "name": "Hindu",
+    "code": null,
+    "parentId": null,
+    "status": "active",
+    "order": 0,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 11. POST `/api/admin/:type`
+**URL:** `http://localhost:5000/api/admin/:type`
+**Purpose:** Create a new master record
+
+**Example:** `http://localhost:5000/api/admin/religion`
+
+**Payload**
+```json
+{
+  "name": "Hindu",
+  "code": null,
+  "parentId": null,
+  "status": "active",
+  "order": 0
+}
+```
+
+**Response (Success - 201)**
+```json
+{
+  "success": true,
+  "message": "Master created successfully",
+  "data": {
+    "id": 1,
+    "type": "religion",
+    "name": "Hindu",
+    "code": null,
+    "parentId": null,
+    "status": "active",
+    "order": 0,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 12. PUT `/api/admin/:type/:id`
+**URL:** `http://localhost:5000/api/admin/:type/:id`
+**Purpose:** Update an existing master record
+
+**Example:** `http://localhost:5000/api/admin/religion/1`
+
+**Payload**
+```json
+{
+  "name": "Hinduism",
+  "status": "active"
+}
+```
+
+**Response (Success - 200)**
+```json
+{
+  "success": true,
+  "message": "Master updated successfully",
+  "data": {
+    "id": 1,
+    "type": "religion",
+    "name": "Hinduism",
+    "code": null,
+    "parentId": null,
+    "status": "active",
+    "order": 0,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 13. DELETE `/api/admin/:type/:id`
+**URL:** `http://localhost:5000/api/admin/:type/:id`
+**Purpose:** Delete a master record
+
+**Example:** `http://localhost:5000/api/admin/religion/1`
+
+**Response (Success - 200)**
+```json
+{
+  "success": true,
+  "message": "Master deleted successfully"
+}
+```
+
+---

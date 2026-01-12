@@ -1,0 +1,64 @@
+const express = require('express');
+const cors = require('cors');
+const morgan = require('morgan');
+const helmet = require('helmet');
+
+const authRoutes = require('./modules/auth/auth.routes');
+const userRoutes = require('./modules/users/user.routes');
+const horoscopeRoutes = require('./modules/users/horoscope.routes');
+const familyRoutes = require('./modules/users/family.routes');
+const hobbiesRoutes = require('./modules/users/hobbies.routes');
+const masterRoutes = require('./modules/admin/master.routes');
+const subscriptionRoutes = require('./modules/admin/subscription.routes');
+const userSubscriptionRoutes = require('./modules/subscription/subscription.routes');
+const publicSubscriptionRoutes = require('./modules/subscription/subscription.public.routes');
+const publicMasterRoutes = require('./modules/master/master.public.routes');
+const adminUserRoutes = require('./modules/admin/adminUser.routes');
+const adminUserManagementRoutes = require('./modules/admin/user.routes');
+const photoModerationRoutes = require('./modules/admin/photoModeration.routes');
+const dashboardRoutes = require('./modules/admin/dashboard.routes');
+const notificationRoutes = require('./modules/notifications/notification.routes');
+const errorHandler = require('./middleware/error.middleware');
+
+const app = express();
+
+app.use(helmet());
+app.use(cors());
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+// Increase body size limit to 50MB for image uploads (base64 encoded images are larger)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+app.get('/', (req, res) => {
+  res.json({ message: 'Welcome to Namma Naidu Backend API' });
+});
+
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/users', horoscopeRoutes);
+app.use('/api/users', familyRoutes);
+app.use('/api/users', hobbiesRoutes);
+// Public routes (no authentication required)
+app.use('/api', publicSubscriptionRoutes);
+app.use('/api', publicMasterRoutes);
+// Authenticated User Subscription routes
+app.use('/api/subscription', userSubscriptionRoutes);
+
+// Register specific admin routes BEFORE generic routes to avoid route conflicts
+app.use('/api/admin', subscriptionRoutes);
+app.use('/api/admin', adminUserRoutes);
+app.use('/api/admin', adminUserManagementRoutes); // Admin user management routes (must come before master routes)
+app.use('/api/admin', photoModerationRoutes);
+app.use('/api/admin', dashboardRoutes);
+app.use('/api/admin', masterRoutes);
+app.use('/api/notifications', notificationRoutes);
+
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+app.use(errorHandler);
+
+module.exports = app;
+
+
