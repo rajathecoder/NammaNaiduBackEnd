@@ -31,18 +31,51 @@ const initializeFirebaseAdmin = () => {
       }
     } else {
       // Fall back to file (for local development)
-      const serviceAccountPath = path.join(__dirname, 'firebase-service-account.json');
+      // Try multiple possible paths to handle different execution contexts
+      const possiblePaths = [
+        path.join(__dirname, 'firebase-service-account.json'), // Standard path (when loaded from src/config/)
+        path.resolve(process.cwd(), 'src/config/firebase-service-account.json'), // From project root
+        path.resolve(__dirname, '../config/firebase-service-account.json'), // Alternative relative path
+        path.resolve(process.cwd(), 'NammaNaiduBackend/src/config/firebase-service-account.json'), // If running from parent directory
+      ];
       
-      if (fs.existsSync(serviceAccountPath)) {
+      // Debug: Log paths being checked
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Checking for Firebase service account file...');
+        console.log('🔍 __dirname:', __dirname);
+        console.log('🔍 process.cwd():', process.cwd());
+      }
+      
+      let serviceAccountPath = null;
+      for (const possiblePath of possiblePaths) {
+        const normalizedPath = path.normalize(possiblePath);
+        if (fs.existsSync(normalizedPath)) {
+          serviceAccountPath = normalizedPath;
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Found file at:', serviceAccountPath);
+          }
+          break;
+        } else if (process.env.NODE_ENV === 'development') {
+          console.log('   ❌ Not found:', normalizedPath);
+        }
+      }
+      
+      if (serviceAccountPath) {
         try {
           const serviceAccountFile = fs.readFileSync(serviceAccountPath, 'utf8');
           serviceAccount = JSON.parse(serviceAccountFile);
           console.log('✅ Loaded Firebase service account from file');
         } catch (fileError) {
           console.error('❌ Error reading Firebase service account file:', fileError.message);
+          console.error('❌ File path attempted:', serviceAccountPath);
           throw new Error(`Failed to read service account file: ${fileError.message}`);
         }
       } else {
+        console.error('❌ Firebase service account file not found in any of these locations:');
+        possiblePaths.forEach(p => {
+          const normalized = path.normalize(p);
+          console.error('   -', normalized, fs.existsSync(normalized) ? '✅ EXISTS' : '❌ NOT FOUND');
+        });
         throw new Error(
           'Firebase service account not found. ' +
           'Either set FIREBASE_SERVICE_ACCOUNT environment variable or place firebase-service-account.json in src/config/'
