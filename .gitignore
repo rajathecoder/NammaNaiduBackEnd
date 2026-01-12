@@ -34,9 +34,4 @@ build/
 coverage/
 .nyc_output/
 
-# Firebase service account (contains sensitive credentials)
-src/config/firebase-service-account.json
-**/firebase-service-account.json
-**/*firebase-adminsdk*.json
-
 

@@ -1,6 +1,7 @@
 const User = require('../../models/User.model');
 const SubscriptionTransaction = require('../../models/SubscriptionTransaction.model');
 const Notification = require('../../models/Notification.model');
+const DeviceToken = require('../../models/DeviceToken.model');
 const { sendPushNotificationToUser, sendPushNotificationToUsers } = require('../../services/push-notification.service');
 const { Op } = require('sequelize');
 
@@ -94,6 +95,39 @@ const sendPushNotification = async (req, res) => {
 
     const accountIds = targetUsers.map((user) => user.accountId);
 
+    console.log(`\n📤 Sending push notification to ${targetUsers.length} users (target: ${target})`);
+    console.log(`Title: "${title}"`);
+    console.log(`Message: "${message}"`);
+    console.log(`Account IDs: ${accountIds.slice(0, 5).join(', ')}${accountIds.length > 5 ? '...' : ''}`);
+
+    // Check how many users have FCM tokens
+    const deviceTokensCount = await DeviceToken.count({
+      where: {
+        accountId: accountIds,
+        isActive: true,
+      },
+    });
+
+    console.log(`📱 Found ${deviceTokensCount} active device token(s) for ${targetUsers.length} user(s)`);
+
+    // Get sample tokens to check if they're valid
+    const sampleTokens = await DeviceToken.findAll({
+      where: {
+        accountId: accountIds.slice(0, 3),
+        isActive: true,
+      },
+      attributes: ['fcmToken', 'device', 'accountId'],
+      limit: 3,
+    });
+
+    if (sampleTokens.length > 0) {
+      console.log(`\n📋 Sample tokens:`);
+      sampleTokens.forEach((token) => {
+        const isPlaceholder = token.fcmToken.includes('fcm_token_placeholder') || token.fcmToken.includes('web_fcm_token');
+        console.log(`   ${token.accountId}: ${token.device} - ${isPlaceholder ? '⚠️ PLACEHOLDER' : '✅ Valid'} (${token.fcmToken.substring(0, 30)}...)`);
+      });
+    }
+
     // Send push notifications
     const result = await sendPushNotificationToUsers(
       accountIds,
@@ -104,6 +138,17 @@ const sendPushNotification = async (req, res) => {
         timestamp: new Date().toISOString(),
       }
     );
+
+    console.log(`\n📊 Notification send summary:`);
+    console.log(`   Total users: ${targetUsers.length}`);
+    console.log(`   Device tokens found: ${deviceTokensCount}`);
+    console.log(`   Successfully sent: ${result.sentCount}`);
+    console.log(`   Failed: ${result.failedCount || 0}`);
+
+    if (result.sentCount === 0 && deviceTokensCount > 0) {
+      console.log(`\n⚠️ WARNING: No notifications were sent despite having ${deviceTokensCount} device token(s).`);
+      console.log(`   This might indicate that all tokens are placeholders or invalid.`);
+    }
 
     // Create notification records in database for all users
     try {
@@ -128,6 +173,7 @@ const sendPushNotification = async (req, res) => {
       data: {
         target,
         totalUsers: targetUsers.length,
+        deviceTokensFound: deviceTokensCount,
         sentCount: result.sentCount,
         failedCount: result.failedCount || 0,
       },
@@ -142,7 +188,76 @@ const sendPushNotification = async (req, res) => {
   }
 };
 
-module.exports = {
-  sendPushNotification,
+/**
+ * Get notification statistics (for debugging)
+ * GET /api/admin/notifications/stats
+ */
+const getNotificationStats = async (req, res) => {
+  try {
+    const totalUsers = await User.count({
+      where: {
+        isActive: true,
+        role: 'user',
+      },
+    });
+
+    const totalDeviceTokens = await DeviceToken.count({
+      where: {
+        isActive: true,
+      },
+    });
+
+    const validDeviceTokens = await DeviceToken.count({
+      where: {
+        isActive: true,
+        fcmToken: {
+          [Op.notLike]: '%fcm_token_placeholder%',
+        },
+      },
+    });
+
+    const mobileTokens = await DeviceToken.count({
+      where: {
+        isActive: true,
+        device: 'mobile',
+        fcmToken: {
+          [Op.notLike]: '%fcm_token_placeholder%',
+        },
+      },
+    });
+
+    const webTokens = await DeviceToken.count({
+      where: {
+        isActive: true,
+        device: 'web',
+        fcmToken: {
+          [Op.notLike]: '%web_fcm_token%',
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        totalDeviceTokens,
+        validDeviceTokens,
+        placeholderTokens: totalDeviceTokens - validDeviceTokens,
+        mobileTokens,
+        webTokens,
+      },
+    });
+  } catch (error) {
+    console.error('Error getting notification stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get notification stats',
+      error: error.message,
+    });
+  }
 };
 
+module.exports = {
+  sendPushNotification,
+  getNotificationStats,
+};

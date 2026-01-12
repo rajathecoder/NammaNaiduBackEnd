@@ -30,16 +30,24 @@ const sendPushNotificationToUser = async (accountId, notification, data = {}) =>
 
     const fcmTokens = deviceTokens
       .map((token) => token.fcmToken)
-      .filter((token) => token && token.trim() !== '');
+      .filter((token) => {
+        // Filter out placeholder tokens
+        if (!token || token.trim() === '') return false;
+        if (token.includes('fcm_token_placeholder') || token.includes('web_fcm_token')) return false;
+        return true;
+      });
 
     if (fcmTokens.length === 0) {
       console.log(`No valid FCM tokens found for user ${accountId}`);
+      console.log(`Found ${deviceTokens.length} device tokens, but all are invalid or placeholders`);
       return {
         success: false,
         message: 'No valid FCM tokens found for user',
         sentCount: 0,
       };
     }
+
+    console.log(`Found ${fcmTokens.length} valid FCM token(s) for user ${accountId}`);
 
     // If only one token, use single send
     if (fcmTokens.length === 1) {
@@ -119,10 +127,16 @@ const sendPushNotificationToUsers = async (accountIds, notification, data = {}) 
 
     const fcmTokens = deviceTokens
       .map((token) => token.fcmToken)
-      .filter((token) => token && token.trim() !== '');
+      .filter((token) => {
+        // Filter out placeholder tokens
+        if (!token || token.trim() === '') return false;
+        if (token.includes('fcm_token_placeholder') || token.includes('web_fcm_token')) return false;
+        return true;
+      });
 
     if (fcmTokens.length === 0) {
       console.log(`No valid FCM tokens found for users`);
+      console.log(`Found ${deviceTokens.length} device tokens, but all are invalid or placeholders`);
       return {
         success: false,
         message: 'No valid FCM tokens found for users',
@@ -130,9 +144,13 @@ const sendPushNotificationToUsers = async (accountIds, notification, data = {}) 
       };
     }
 
+    console.log(`Found ${fcmTokens.length} valid FCM token(s) for ${accountIds.length} user(s)`);
+    console.log(`Sending notification: "${notification.title}" - "${notification.body}"`);
+
     // Use multicast for multiple tokens
     try {
       const response = await sendMulticastNotification(fcmTokens, notification, data);
+      console.log(`Notification send result: ${response.successCount} successful, ${response.failureCount} failed`);
       return {
         success: true,
         message: 'Push notifications sent successfully',
