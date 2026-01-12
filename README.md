@@ -103,6 +103,34 @@ NammaNaiduBackend/
 - `CORS_ORIGIN` - Allowed CORS origin
 - `OTP_STATIC_CODE` - Development OTP to send (use 12345 while prototyping)
 - `OTP_EXPIRY_MINUTES` - How long the OTP is valid
+- `FIREBASE_SERVICE_ACCOUNT` - Firebase service account JSON as a string (for production/cloud deployments)
+
+## Firebase Configuration
+
+### For Local Development
+
+1. Download your Firebase service account JSON file from Firebase Console
+2. Place it at `src/config/firebase-service-account.json`
+3. The app will automatically load it from the file
+
+### For Production/Cloud Deployments (Render.com, Railway, etc.)
+
+1. **Convert the JSON file to environment variable format:**
+   ```bash
+   node scripts/convert-firebase-to-env.js
+   ```
+   This will output the JSON as a single-line string.
+
+2. **Set the environment variable in your hosting platform:**
+   - **Render.com**: Go to your service → Environment → Add Environment Variable
+     - Key: `FIREBASE_SERVICE_ACCOUNT`
+     - Value: [paste the JSON string from step 1]
+   - **Railway**: Settings → Variables → Add Variable
+   - **Heroku**: `heroku config:set FIREBASE_SERVICE_ACCOUNT='...'`
+
+3. **Important**: The JSON string must be on a single line. Make sure to escape quotes properly if setting via command line.
+
+**Note**: The `firebase-service-account.json` file is in `.gitignore` and should never be committed to version control.
 
 ## Security
 

@@ -1,14 +1,13 @@
 const admin = require('firebase-admin');
 const path = require('path');
-
-// Path to the service account key file
-const serviceAccountPath = path.join(__dirname, 'firebase-service-account.json');
+const fs = require('fs');
 
 let firebaseAdmin = null;
 
 /**
  * Initialize Firebase Admin SDK
  * This should be called once when the server starts
+ * Supports both environment variable (for production) and file (for local development)
  */
 const initializeFirebaseAdmin = () => {
   try {
@@ -19,8 +18,42 @@ const initializeFirebaseAdmin = () => {
       return firebaseAdmin;
     }
 
-    // Load service account key
-    const serviceAccount = require(serviceAccountPath);
+    let serviceAccount;
+
+    // Try to load from environment variable first (for production/cloud deployments)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        console.log('✅ Loaded Firebase service account from environment variable');
+      } catch (parseError) {
+        console.error('❌ Error parsing FIREBASE_SERVICE_ACCOUNT environment variable:', parseError.message);
+        throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT JSON in environment variable');
+      }
+    } else {
+      // Fall back to file (for local development)
+      const serviceAccountPath = path.join(__dirname, 'firebase-service-account.json');
+      
+      if (fs.existsSync(serviceAccountPath)) {
+        try {
+          const serviceAccountFile = fs.readFileSync(serviceAccountPath, 'utf8');
+          serviceAccount = JSON.parse(serviceAccountFile);
+          console.log('✅ Loaded Firebase service account from file');
+        } catch (fileError) {
+          console.error('❌ Error reading Firebase service account file:', fileError.message);
+          throw new Error(`Failed to read service account file: ${fileError.message}`);
+        }
+      } else {
+        throw new Error(
+          'Firebase service account not found. ' +
+          'Either set FIREBASE_SERVICE_ACCOUNT environment variable or place firebase-service-account.json in src/config/'
+        );
+      }
+    }
+
+    // Validate service account structure
+    if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
+      throw new Error('Invalid service account: missing required fields (project_id, private_key, or client_email)');
+    }
 
     // Initialize Firebase Admin
     firebaseAdmin = admin.initializeApp({
@@ -32,7 +65,6 @@ const initializeFirebaseAdmin = () => {
     return firebaseAdmin;
   } catch (error) {
     console.error('❌ Error initializing Firebase Admin SDK:', error.message);
-    console.error('Make sure the service account JSON file exists at:', serviceAccountPath);
     throw error;
   }
 };
