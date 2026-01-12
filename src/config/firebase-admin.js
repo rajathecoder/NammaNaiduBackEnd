@@ -6,8 +6,10 @@ let firebaseAdmin = null;
 
 /**
  * Initialize Firebase Admin SDK
- * Reads from .env file (FIREBASE_SERVICE_ACCOUNT) or firebase-service-account.json file
- * Priority: Environment variable > JSON file
+ * Priority: Environment variable (Railway/production) > JSON file (local development)
+ * 
+ * Railway: Uses FIREBASE_SERVICE_ACCOUNT environment variable (already configured)
+ * Local: Uses firebase-service-account.json file in src/config/ directory
  */
 const initializeFirebaseAdmin = () => {
   try {
@@ -18,18 +20,26 @@ const initializeFirebaseAdmin = () => {
 
     let serviceAccount;
 
-    // Load from .env file (FIREBASE_SERVICE_ACCOUNT) or JSON file
+    // Load from environment variable (Railway/production) or JSON file (local)
+    // Railway automatically provides FIREBASE_SERVICE_ACCOUNT from environment variables
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       try {
         let jsonString = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
         
-        // Handle newlines in JSON string (Railway may store with actual newlines)
+        // Railway stores JSON with literal \n characters (not actual newlines)
+        // If we detect actual newlines, convert them to escaped newlines
+        // This handles cases where Railway might store with actual line breaks
         if (jsonString.includes('\n') && !jsonString.includes('\\n')) {
+          // Replace actual newlines with escaped newlines
           jsonString = jsonString.replace(/\n/g, '\\n');
+          // Also handle carriage returns
+          jsonString = jsonString.replace(/\r/g, '');
         }
         
         serviceAccount = JSON.parse(jsonString);
       } catch (parseError) {
+        console.error('Firebase JSON parse error:', parseError.message);
+        console.error('First 100 chars of value:', process.env.FIREBASE_SERVICE_ACCOUNT.substring(0, 100));
         throw new Error(`Invalid FIREBASE_SERVICE_ACCOUNT JSON: ${parseError.message}`);
       }
     } else {
@@ -41,8 +51,9 @@ const initializeFirebaseAdmin = () => {
       
       let serviceAccountPath = null;
       for (const possiblePath of possiblePaths) {
-        if (fs.existsSync(possiblePath)) {
-          serviceAccountPath = possiblePath;
+        const normalizedPath = path.normalize(possiblePath);
+        if (fs.existsSync(normalizedPath)) {
+          serviceAccountPath = normalizedPath;
           break;
         }
       }
@@ -55,9 +66,12 @@ const initializeFirebaseAdmin = () => {
           throw new Error(`Failed to read service account file: ${fileError.message}`);
         }
       } else {
+        // For Railway/production: FIREBASE_SERVICE_ACCOUNT should be set as environment variable
+        // For local development: Place firebase-service-account.json in src/config/
         throw new Error(
           'Firebase service account not found. ' +
-          'Set FIREBASE_SERVICE_ACCOUNT environment variable or place firebase-service-account.json in src/config/'
+          'For Railway/production: Set FIREBASE_SERVICE_ACCOUNT environment variable. ' +
+          'For local development: Place firebase-service-account.json in src/config/'
         );
       }
     }
