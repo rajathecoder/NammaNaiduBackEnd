@@ -18,6 +18,7 @@ const adminUserManagementRoutes = require('./modules/admin/user.routes');
 const photoModerationRoutes = require('./modules/admin/photoModeration.routes');
 const dashboardRoutes = require('./modules/admin/dashboard.routes');
 const notificationRoutes = require('./modules/notifications/notification.routes');
+const deviceRoutes = require('./modules/devices/device.routes');
 const errorHandler = require('./middleware/error.middleware');
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/admin', photoModerationRoutes);
 app.use('/api/admin', dashboardRoutes);
 app.use('/api/admin', masterRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/devices', deviceRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });

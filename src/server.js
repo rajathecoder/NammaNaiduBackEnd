@@ -11,6 +11,7 @@ require('./models/SubscriptionTransaction.model');
 require('./models/ProfileAction.model');
 require('./models/PersonPhoto.model');
 require('./models/Notification.model');
+require('./models/DeviceToken.model');
 
 const app = require('./app');
 const { connectDB } = require('./config/database');
