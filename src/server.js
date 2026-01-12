@@ -15,10 +15,19 @@ require('./models/DeviceToken.model');
 
 const app = require('./app');
 const { connectDB } = require('./config/database');
+const { initializeFirebaseAdmin } = require('./config/firebase-admin');
 
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
+  try {
+    // Initialize Firebase Admin SDK
+    initializeFirebaseAdmin();
+  } catch (error) {
+    console.error('Warning: Firebase Admin initialization failed:', error.message);
+    console.log('Server will continue without Firebase Admin (push notifications may not work)');
+  }
+
   await connectDB();
 
   const server = app.listen(PORT, () => {

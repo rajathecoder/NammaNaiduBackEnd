@@ -462,7 +462,7 @@ const createProfileAction = async (req, res) => {
       }
 
       if (notificationType !== 'system') {
-        await Notification.create({
+        const createdNotification = await Notification.create({
           userId: targetUserId,
           senderId: userId,
           type: notificationType,
@@ -470,6 +470,24 @@ const createProfileAction = async (req, res) => {
           message,
           relatedId: profileAction.id.toString()
         });
+
+        // Send push notification
+        try {
+          const { sendPushNotificationToUser } = require('../../services/push-notification.service');
+          await sendPushNotificationToUser(
+            targetUserId,
+            { title, body: message },
+            {
+              type: notificationType,
+              notificationId: createdNotification.id.toString(),
+              senderId: userId,
+              relatedId: profileAction.id.toString(),
+            }
+          );
+        } catch (pushError) {
+          console.error('Failed to send push notification:', pushError);
+          // Non-blocking, continue response
+        }
       }
     } catch (notifError) {
       console.error('Failed to trigger notification:', notifError);

@@ -17,6 +17,7 @@ const adminUserRoutes = require('./modules/admin/adminUser.routes');
 const adminUserManagementRoutes = require('./modules/admin/user.routes');
 const photoModerationRoutes = require('./modules/admin/photoModeration.routes');
 const dashboardRoutes = require('./modules/admin/dashboard.routes');
+const adminNotificationRoutes = require('./modules/admin/notification.routes');
 const notificationRoutes = require('./modules/notifications/notification.routes');
 const deviceRoutes = require('./modules/devices/device.routes');
 const errorHandler = require('./middleware/error.middleware');
@@ -51,6 +52,7 @@ app.use('/api/admin', adminUserRoutes);
 app.use('/api/admin', adminUserManagementRoutes); // Admin user management routes (must come before master routes)
 app.use('/api/admin', photoModerationRoutes);
 app.use('/api/admin', dashboardRoutes);
+app.use('/api/admin', adminNotificationRoutes);
 app.use('/api/admin', masterRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/devices', deviceRoutes);
