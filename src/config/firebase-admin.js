@@ -26,20 +26,43 @@ const initializeFirebaseAdmin = () => {
       try {
         let jsonString = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
         
-        // Railway stores JSON with literal \n characters (not actual newlines)
-        // If we detect actual newlines, convert them to escaped newlines
-        // This handles cases where Railway might store with actual line breaks
-        if (jsonString.includes('\n') && !jsonString.includes('\\n')) {
-          // Replace actual newlines with escaped newlines
-          jsonString = jsonString.replace(/\n/g, '\\n');
-          // Also handle carriage returns
-          jsonString = jsonString.replace(/\r/g, '');
+        // Railway can store JSON in different formats:
+        // 1. As a single-line string with escaped newlines (\n)
+        // 2. As a multiline string with actual newlines
+        // 3. As a base64 encoded string (less common)
+        
+        // Try to parse directly first (handles escaped newlines)
+        try {
+          serviceAccount = JSON.parse(jsonString);
+        } catch (firstParseError) {
+          // If direct parse fails, try handling actual newlines
+          // Replace actual newlines with escaped newlines for private_key field
+          if (jsonString.includes('\n') && !jsonString.includes('\\n')) {
+            // Handle multiline JSON from Railway
+            // Replace actual newlines in the private_key value only
+            jsonString = jsonString.replace(/"private_key":\s*"([^"]*(?:\n[^"]*)*)"/g, (match, keyValue) => {
+              const escapedKey = keyValue.replace(/\n/g, '\\n').replace(/\r/g, '');
+              return `"private_key": "${escapedKey}"`;
+            });
+            // Also remove any carriage returns
+            jsonString = jsonString.replace(/\r/g, '');
+            serviceAccount = JSON.parse(jsonString);
+          } else {
+            // If still fails, try base64 decode (Railway sometimes encodes large values)
+            try {
+              const decoded = Buffer.from(jsonString, 'base64').toString('utf8');
+              serviceAccount = JSON.parse(decoded);
+            } catch (base64Error) {
+              throw firstParseError; // Throw original error
+            }
+          }
         }
         
-        serviceAccount = JSON.parse(jsonString);
+        console.log('✅ Successfully loaded Firebase service account from environment variable');
       } catch (parseError) {
-        console.error('Firebase JSON parse error:', parseError.message);
-        console.error('First 100 chars of value:', process.env.FIREBASE_SERVICE_ACCOUNT.substring(0, 100));
+        console.error('❌ Firebase JSON parse error:', parseError.message);
+        console.error('📝 First 200 chars of FIREBASE_SERVICE_ACCOUNT:', process.env.FIREBASE_SERVICE_ACCOUNT.substring(0, 200));
+        console.error('💡 Tip: Make sure the JSON is valid and properly formatted in Railway');
         throw new Error(`Invalid FIREBASE_SERVICE_ACCOUNT JSON: ${parseError.message}`);
       }
     } else {
@@ -96,12 +119,29 @@ const initializeFirebaseAdmin = () => {
 };
 
 /**
+ * Check if Firebase Admin is initialized
+ * @returns {boolean} True if initialized, false otherwise
+ */
+const isFirebaseAdminInitialized = () => {
+  return firebaseAdmin !== null && admin.apps.length > 0;
+};
+
+/**
  * Get Firebase Admin instance
  * @returns {admin.app.App} Firebase Admin app instance
  */
 const getFirebaseAdmin = () => {
   if (!firebaseAdmin) {
-    throw new Error('Firebase Admin not initialized. Call initializeFirebaseAdmin() first.');
+    // Try to initialize if not already done
+    try {
+      return initializeFirebaseAdmin();
+    } catch (error) {
+      throw new Error(
+        'Firebase Admin not initialized. ' +
+        'For Railway/production: Set FIREBASE_SERVICE_ACCOUNT environment variable. ' +
+        'For local development: Place firebase-service-account.json in src/config/'
+      );
+    }
   }
   return firebaseAdmin;
 };
@@ -273,6 +313,7 @@ const sendTopicNotification = async (topic, notification, data = {}) => {
 module.exports = {
   initializeFirebaseAdmin,
   getFirebaseAdmin,
+  isFirebaseAdminInitialized,
   getMessaging,
   sendNotification,
   sendMulticastNotification,

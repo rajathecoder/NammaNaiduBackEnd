@@ -23,9 +23,29 @@ const startServer = async () => {
   try {
     // Initialize Firebase Admin SDK
     initializeFirebaseAdmin();
+    console.log('✅ Firebase Admin SDK initialized successfully');
   } catch (error) {
-    console.error('Warning: Firebase Admin initialization failed:', error.message);
-    console.log('Server will continue without Firebase Admin (push notifications may not work)');
+    console.error('⚠️  Warning: Firebase Admin initialization failed:', error.message);
+    console.log('');
+    console.log('📋 To fix this issue:');
+    console.log('');
+    console.log('For Railway/Production:');
+    console.log('  1. Go to Railway Dashboard → Your Service → Variables');
+    console.log('  2. Add a new variable:');
+    console.log('     Key: FIREBASE_SERVICE_ACCOUNT');
+    console.log('     Value: (Paste the entire JSON from Firebase service account key)');
+    console.log('  3. Restart your Railway service');
+    console.log('');
+    console.log('For Local Development:');
+    console.log('  1. Download Firebase service account JSON from Firebase Console');
+    console.log('  2. Save it as: src/config/firebase-service-account.json');
+    console.log('  3. Restart your server');
+    console.log('');
+    console.log('⚠️  Server will continue without Firebase Admin');
+    console.log('   - Push notifications will NOT work');
+    console.log('   - Firebase OTP login will NOT work');
+    console.log('   - Other features will work normally');
+    console.log('');
   }
 
   await connectDB();

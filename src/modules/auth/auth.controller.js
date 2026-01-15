@@ -344,10 +344,24 @@ const firebaseLogin = async (req, res) => {
     } = req.body;
 
     if (!idToken) {
-      return res.status(400).json({ message: 'Firebase ID token is required' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Firebase ID token is required' 
+      });
     }
 
-    const firebaseAuth = getFirebaseAuth();
+    // Check if Firebase Admin is initialized
+    let firebaseAuth;
+    try {
+      firebaseAuth = getFirebaseAuth();
+    } catch (error) {
+      console.error('Firebase Admin not initialized:', error.message);
+      return res.status(503).json({
+        success: false,
+        message: 'Firebase Admin SDK is not configured. Please set FIREBASE_SERVICE_ACCOUNT environment variable in Railway.',
+      });
+    }
+
     const decoded = await firebaseAuth.verifyIdToken(idToken);
 
     const phone = decoded.phone_number;

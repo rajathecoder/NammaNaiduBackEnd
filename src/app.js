@@ -21,6 +21,7 @@ const adminNotificationRoutes = require('./modules/admin/notification.routes');
 const notificationRoutes = require('./modules/notifications/notification.routes');
 const deviceRoutes = require('./modules/devices/device.routes');
 const errorHandler = require('./middleware/error.middleware');
+const { apiLogger, errorLogger } = require('./middleware/apiLogger.middleware');
 
 const app = express();
 
@@ -30,6 +31,9 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 // Increase body size limit to 50MB for image uploads (base64 encoded images are larger)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// API Logger Middleware - Log all API calls
+app.use(apiLogger);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to Namma Naidu Backend API' });
@@ -60,6 +64,9 @@ app.use('/api/devices', deviceRoutes);
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
+
+// Error Logger Middleware - Log errors with full context
+app.use(errorLogger);
 
 app.use(errorHandler);
 
