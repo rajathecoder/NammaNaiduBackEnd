@@ -5,6 +5,7 @@ const {
   login,
   sendRegistrationOtp,
   verifyRegistrationOtp,
+  firebaseLogin,
 } = require('./auth.controller');
 const { validate } = require('../../middleware/validation.middleware');
 
@@ -44,6 +45,22 @@ router.post(
     validate,
   ],
   verifyRegistrationOtp
+);
+
+router.post(
+  '/firebase-login',
+  [
+    body('idToken').trim().notEmpty().withMessage('Firebase ID token is required'),
+    body('name').optional().trim(),
+    body('gender')
+      .optional()
+      .isIn(['Male', 'Female', 'Other'])
+      .withMessage('Gender must be Male, Female, or Other'),
+    body('profileFor').optional().trim(),
+    body('countryCode').optional().trim(),
+    validate,
+  ],
+  firebaseLogin
 );
 
 // Register route

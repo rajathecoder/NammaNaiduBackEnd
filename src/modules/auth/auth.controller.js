@@ -3,6 +3,10 @@ const BasicDetail = require('../../models/BasicDetail.model');
 const Otp = require('../../models/Otp.model');
 const Admin = require('../../models/Admin.model');
 const { generateToken } = require('../../config/jwt');
+const {
+  getFirebaseAdmin,
+  initializeFirebaseAdmin,
+} = require('../../config/firebase-admin');
 
 const OTP_STATIC_CODE = process.env.OTP_STATIC_CODE || '12345';
 const OTP_EXPIRY_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES || 10);
@@ -10,6 +14,16 @@ const OTP_EXPIRY_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES || 10);
 const formatPhone = (countryCode = '+91', mobile) => {
   const trimmedMobile = `${mobile}`.replace(/\s+/g, '');
   return `${countryCode}${trimmedMobile}`;
+};
+
+const getFirebaseAuth = () => {
+  try {
+    const app = getFirebaseAdmin();
+    return app.auth();
+  } catch (error) {
+    const app = initializeFirebaseAdmin();
+    return app.auth();
+  }
 };
 
 // Register user
@@ -319,11 +333,96 @@ const verifyRegistrationOtp = async (req, res) => {
   }
 };
 
+const firebaseLogin = async (req, res) => {
+  try {
+    const {
+      idToken,
+      name,
+      gender,
+      profileFor,
+      countryCode = '+91',
+    } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({ message: 'Firebase ID token is required' });
+    }
+
+    const firebaseAuth = getFirebaseAuth();
+    const decoded = await firebaseAuth.verifyIdToken(idToken);
+
+    const phone = decoded.phone_number;
+    if (!phone) {
+      return res.status(400).json({ message: 'Phone number not found in token' });
+    }
+
+    let user = await User.findOne({ where: { phone } });
+    let isNewUser = false;
+
+    if (!user) {
+      isNewUser = true;
+      const displayName = name && name.trim() ? name.trim() : 'User';
+      user = await User.create({
+        name: displayName,
+        gender,
+        profileFor,
+        countryCode,
+        phone,
+        otpVerifiedAt: new Date(),
+      });
+    } else if (!user.otpVerifiedAt) {
+      user.otpVerifiedAt = new Date();
+      await user.save();
+    }
+
+    let hasBasicDetails = false;
+    try {
+      const basicDetail = await BasicDetail.findOne({
+        where: { accountId: user.accountId },
+        attributes: ['id', 'accountId'],
+      });
+      hasBasicDetails = !!basicDetail;
+    } catch (error) {
+      console.warn('Error checking basicDetails:', error.message);
+      hasBasicDetails = false;
+    }
+
+    const token = generateToken(user.accountId);
+
+    return res.json({
+      success: true,
+      message: 'Firebase login successful',
+      data: {
+        user: {
+          id: user.id,
+          accountId: user.accountId,
+          userCode: user.userCode,
+          name: user.name,
+          phone: user.phone,
+          email: user.email,
+          gender: user.gender,
+          profileFor: user.profileFor,
+        },
+        token,
+        isAdmin: false,
+        hasBasicDetails,
+        isNewUser,
+      },
+    });
+  } catch (error) {
+    console.error('Firebase login error:', error.message);
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid Firebase token',
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   sendRegistrationOtp,
   verifyRegistrationOtp,
+  firebaseLogin,
 };
 
 
